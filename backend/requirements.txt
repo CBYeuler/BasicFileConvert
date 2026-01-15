@@ -1,4 +1,7 @@
-flask
 reportlab
 pandas
 openpyxl
+flask
+flask-cors
+pillow
+reportlab

@@ -1,43 +1,27 @@
-from flask import Blueprint, request, jsonify
-from registry import CONVERTERS
+from flask import Blueprint, request, jsonify, send_file
+from services.file_converter import convert_file
 import os
 
 convert_bp = Blueprint("convert", __name__)
 
 @convert_bp.route("/convert", methods=["POST"])
-def convert_file():
+def convert():
     file = request.files.get("file")
-    target = request.form.get("target")
+    from_type = request.form.get("from_type")
+    to_type = request.form.get("to_type")
 
-    if not file or not target:
-        return jsonify({"error": "Missing file or target format"}), 400
+    if not file or not from_type or not to_type:
+        return jsonify({"error": "Missing data"}), 400
 
-    input_ext = file.filename.rsplit(".", 1)[-1]
-    key = (input_ext, target)
-
-    if key not in CONVERTERS:
-        return jsonify({"error": "Conversion not supported"}), 400
-
-    input_path = f"uploads/{file.filename}"
-    output_filename = file.filename.rsplit(".", 1)[0] + "." + target
-    output_path = f"uploads/{output_filename}"
-
-    file.save(input_path)
-    CONVERTERS[key](input_path, output_path)
+    try:
+        output_path = convert_file(file, from_type, to_type)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
     return jsonify({
-        "message": "Converted",
-        "download": f"/download/{output_filename}"
+        "download_url": f"/download/{os.path.basename(output_path)}"
     })
 
-
-@convert_bp.route("/download/<filename>", methods=["GET"])
-def download_file(filename):
-    file_path = os.path.join("uploads", filename)
-    if not os.path.exists(file_path):
-        return jsonify({"error": "File not found"}), 404
-
-    return jsonify({
-        "message": "File ready for download",
-        "file_path": file_path
-    })
+@convert_bp.route("/download/<filename>")
+def download(filename):
+    return send_file(f"uploads/{filename}", as_attachment=True)
