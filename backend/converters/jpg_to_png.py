@@ -3,6 +3,7 @@ from PIL import Image
 def convert(input_path, output_path) -> None:
 
 
+
     with Image.open(input_path) as img:
 
         try:
@@ -12,3 +13,4 @@ def convert(input_path, output_path) -> None:
         except Exception as e:
             print(f"Error converting image: {e}")
             return None
+        
