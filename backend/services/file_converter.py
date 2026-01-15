@@ -1,17 +1,21 @@
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+import os
+from services.converter_registery import CONVERTERS
 
-def txt_to_pdf(txt_path, pdf_path):
-    c = canvas.Canvas(pdf_path, pagesize=A4)
-    width, height = A4
+UPLOAD_FOLDER = "uploads"
 
-    y = height - 40
-    with open(txt_path, "r", encoding="utf-8") as f:
-        for line in f:
-            c.drawString(40, y, line.strip())
-            y -= 15
-            if y < 40:
-                c.showPage()
-                y = height - 40
+def convert_file(file, from_type: str, to_type: str) -> str:
+    key = (from_type.lower(), to_type.lower())
 
-    c.save()
+    if key not in CONVERTERS:
+        raise ValueError(f"Conversion {from_type} → {to_type} not supported")
+
+    input_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    output_filename = file.filename.rsplit(".", 1)[0] + f".{to_type}"
+    output_path = os.path.join(UPLOAD_FOLDER, output_filename)
+
+    file.save(input_path)
+
+    converter = CONVERTERS[key]
+    converter(input_path, output_path)
+
+    return output_path
