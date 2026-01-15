@@ -1,23 +1,43 @@
 from flask import Blueprint, request, jsonify
-from services.file_converter import txt_to_pdf
+from registry import CONVERTERS
+import os
 
 convert_bp = Blueprint("convert", __name__)
 
-
-
 @convert_bp.route("/convert", methods=["POST"])
 def convert_file():
-    file = request.files["file"]
-    input_path = f"uploads/{file.filename}"
-    output_path = input_path.replace(".txt", ".pdf")
-    file.save(input_path)
-    txt_to_pdf(input_path, output_path)
+    file = request.files.get("file")
+    target = request.form.get("target")
 
-    return jsonify({"message": "File converted", "output": output_path})
+    if not file or not target:
+        return jsonify({"error": "Missing file or target format"}), 400
+
+    input_ext = file.filename.rsplit(".", 1)[-1]
+    key = (input_ext, target)
+
+    if key not in CONVERTERS:
+        return jsonify({"error": "Conversion not supported"}), 400
+
+    input_path = f"uploads/{file.filename}"
+    output_filename = file.filename.rsplit(".", 1)[0] + "." + target
+    output_path = f"uploads/{output_filename}"
+
+    file.save(input_path)
+    CONVERTERS[key](input_path, output_path)
+
+    return jsonify({
+        "message": "Converted",
+        "download": f"/download/{output_filename}"
+    })
+
 
 @convert_bp.route("/download/<filename>", methods=["GET"])
 def download_file(filename):
-    output_path = f"uploads/{filename}"
-    return send_file(output_path, as_attachment=True)
+    file_path = os.path.join("uploads", filename)
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found"}), 404
 
-
+    return jsonify({
+        "message": "File ready for download",
+        "file_path": file_path
+    })
